@@ -26,6 +26,7 @@
           python313Packages.ipykernel
           python313Packages.jupyter
           python313Packages.scikit-learn
+          python313Packages.google-genai
           vscode
           pandoc
           texliveMedium
