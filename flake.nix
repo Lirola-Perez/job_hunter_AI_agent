@@ -20,37 +20,34 @@
         buildInputs = with pkgs; [
           git
           python313
-          python313Packages.numpy
-          python313Packages.pandas
-          python313Packages.tensorflow
-          python313Packages.ipykernel
-          python313Packages.jupyter
-          python313Packages.scikit-learn
-          python313Packages.google-genai
-          python313Packages.pypdf
+          python311Packages.pip
+          python311Packages.virtualenv
+          # python313Packages.numpy
+          # python313Packages.pandas
+          # python313Packages.tensorflow
+          # python313Packages.ipykernel
+          # python313Packages.jupyter
+          # python313Packages.scikit-learn
+          # python313Packages.google-genai
+          # python313Packages.pypdf
+          # python311Packages.streamlit
           vscode
           pandoc
+          ollama
           texliveMedium
         ];
 
         # Runs automatically the moment of typing 'nix develop'
         shellHook = ''
           export PS1="\[\e[48;5;17m\]\[\e[1;38;5;82m\] Job AGENT Project. \[\e[0m\] \[\e[38;5;82m\]❯\[\e[0m\] \[\e[1;34m\]\w\[\e[0m\] \[\e[38;5;82m\]❯\[\e[0m\] "
+          
+          if [ ! -d ".venv" ]; then
+            python -m venv .venv
+          fi
+          
+          source .venv/bin/activate
+          echo "🤖 Python 3.11 virtual environment activated!"
         '';
       };
-
-      services.github-runners.job-agent = {
-          enable = true;
-          url = "https://github.com/Lirola-Perez/job_agent";
-          tokenFile = "/var/keys/github-runner-token"; # File containing your GitHub runner token
-          name = "nixos-job-agent-runner";
-          extraPackages = with pkgs; [
-            python311
-            python311Packages.pip
-            ollama
-            git
-            curl
-          ];
-        };
     };
 }

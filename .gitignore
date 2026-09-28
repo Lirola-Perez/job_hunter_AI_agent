@@ -2,6 +2,8 @@
 profile.json
 *.md
 actions-runner
+*.pdf
+.agents/
 
 # Environment Variables & Keys
 .env
