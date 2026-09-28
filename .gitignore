@@ -1,0 +1,11 @@
+# Personal & Confidential Data
+profile.json
+*.md
+
+# Environment Variables & Keys
+.env
+
+# Python Cache
+__pycache__/
+*.py[cod]
+.venv/
