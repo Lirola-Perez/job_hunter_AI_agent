@@ -67,10 +67,13 @@ def evaluate_job(client: genai.Client, job: dict, resume_text: str) -> dict:
     """
 
     response = client.models.generate_content(
-        model="gemini-1.5-flash",
+        model="gemini-2.5-flash",
         contents=prompt,
         config=types.GenerateContentConfig(
-            response_mime_type="application/json"
+            response_mime_type="application/json",
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                disable=True
+            )
         )
     )
 
