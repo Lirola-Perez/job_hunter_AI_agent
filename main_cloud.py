@@ -158,10 +158,10 @@ def evaluate_job(client: genai.Client, job: dict, resume_text: str) -> dict:
 
     return json.loads(clean_text)
 
-def main():
-    # api_key = os.getenv("GEMINI_API_KEY")
-    # if not api_key:
-    #     raise ValueError("GEMINI_API_KEY secret is missing.")
+def main_cloud():
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY secret is missing.")
 
     resume_text = load_resume("resume.pdf")
     if not resume_text:
@@ -196,4 +196,4 @@ def main():
         print(f"Fit Reason: {match['summary']}")
 
 if __name__ == "__main__":
-    main()
+    main_cloud()

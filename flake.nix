@@ -38,5 +38,19 @@
           export PS1="\[\e[48;5;17m\]\[\e[1;38;5;82m\] Job AGENT Project. \[\e[0m\] \[\e[38;5;82m\]❯\[\e[0m\] \[\e[1;34m\]\w\[\e[0m\] \[\e[38;5;82m\]❯\[\e[0m\] "
         '';
       };
+
+      services.github-runners.job-agent = {
+          enable = true;
+          url = "https://github.com/Lirola-Perez/job_agent";
+          tokenFile = "/var/keys/github-runner-token"; # File containing your GitHub runner token
+          name = "nixos-job-agent-runner";
+          extraPackages = with pkgs; [
+            python311
+            python311Packages.pip
+            ollama
+            git
+            curl
+          ];
+        };
     };
 }
