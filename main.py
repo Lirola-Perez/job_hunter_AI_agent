@@ -1,8 +1,10 @@
 import os
 import json
 import requests
+import time
 from google import genai
 from google.genai import types
+from google.genai.errors import APIError
 
 def load_candidate_profile() -> dict:
     """Loads candidate profile from GitHub Secret/Env or local JSON file."""
@@ -33,7 +35,7 @@ def fetch_recent_jobs():
         return response.json()[1:20]
     return []
 
-def evaluate_job(client: genai.Client, job: dict, profile: dict) -> dict:
+def evaluate_job(client: genai.Client, job: dict, profile: dict, max_retries: int = 3):
     """Uses Gemini to score job fit and extract exact location details."""
     prompt = f"""
     Analyze the following job description against the target candidate profile.
@@ -49,30 +51,49 @@ def evaluate_job(client: genai.Client, job: dict, profile: dict) -> dict:
     Description: {job.get('description', '')[:2500]}
 
     Instructions:
-    Return ONLY a raw valid JSON object with these keys: "company", "title", "match_score", "location", "application_url", "summary".
+    Return ONLY a valid JSON object matching this strict schema:
+    {{
+      "company": "Company Name",
+      "title": "Job Title",
+      "match_score": 8,
+      "location": "Physical City, Country, or Remote Region",
+      "application_url": "Direct application URL",
+      "summary": "1-sentence reason for match quality"
+    }}
     """
 
-    response = client.models.generate_content(
-        model="gemini-3.8-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json"
-        )
-    )
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model="gemini-3.8-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
+            )
 
-    text_content = (response.text or "").strip()
+            text_content = (response.text or "").strip()
 
-    # Clean markdown code block wrappers if present
-    if text_content.startswith("```"):
-        lines = text_content.splitlines()
-        if lines[0].startswith("```"):
-            lines = lines[1:]
-        if lines and lines[-1].startswith("```"):
-            lines = lines[:-1]
-        text_content = "\n".join(lines).strip()
+            # Clean markdown formatting if present
+            if text_content.startswith("```"):
+                lines = text_content.splitlines()
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].startswith("```"):
+                    lines = lines[:-1]
+                text_content = "\n".join(lines).strip()
 
-    return json.loads(text_content)
+            return json.loads(text_content)
 
+        except APIError as e:
+            # Handle rate limits (429) or temporary server unavailability (503)
+            if e.code in (429, 503) and attempt < max_retries - 1:
+                wait_time = (attempt + 1) * 12  # Wait 12s, 24s, etc. before retrying
+                print(f"  [Warning] Received {e.code} for '{job.get('position')}'. Retrying in {wait_time}s...")
+                time.sleep(wait_time)
+            else:
+                raise e
+            
 def main():
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -83,16 +104,27 @@ def main():
     jobs = fetch_recent_jobs()
     min_score = profile.get("min_match_score", 7)
 
+    # Load candidate profile from environment secret
+    profile = json.loads(os.getenv("CANDIDATE_PROFILE_JSON", "{}"))
+
+    # Extract min_match_score, defaulting to 7 if not specified in JSON
+    MIN_MATCH_SCORE = profile.get("min_match_score", 7)
+
     print(f"Scanning {len(jobs)} jobs (Minimum match threshold: {min_score}/10)...")
     matches = []
 
-    for job in jobs:
+    # Main Loop Execution inside main()
+    for idx, job in enumerate(jobs, 1):
         try:
-            eval_result = evaluate_job(client, job, profile)
-            if eval_result.get("match_score", 0) >= min_score:
-                matches.append(eval_result)
+            result = evaluate_job(client, job, profile)
+            if result:
+                if result.get("match_score", 0) >= MIN_MATCH_SCORE:
+                    matches.append(result)
         except Exception as err:
-            print(f"Error processing job '{job.get('position', 'Unknown')}': {err}")
+            print(f"Error processing job '{job.get('position')}': {err}")
+
+        # Enforce rate-limiting pause between requests (15 requests/min max)
+        time.sleep(4)
 
     # Output formatted results
     print(f"\n=== MATCHED ROLES FOUND: {len(matches)} ===")
