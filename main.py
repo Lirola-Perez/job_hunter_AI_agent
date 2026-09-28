@@ -49,17 +49,7 @@ def evaluate_job(client: genai.Client, job: dict, profile: dict) -> dict:
     Description: {job.get('description', '')[:2500]}
 
     Instructions:
-    1. Score the overall match quality on a scale of 1 to 10 based on skills and preferences.
-    2. Extract the exact physical office location, city, or remote region flexibility.
-    3. Return ONLY a valid JSON object matching this strict schema:
-    {{
-      "company": "Company Name",
-      "title": "Job Title",
-      "match_score": 8,
-      "location": "Physical City, Country, or Remote Region",
-      "application_url": "Direct application URL",
-      "summary": "1-sentence reason for match quality"
-    }}
+    Return ONLY a raw valid JSON object with these keys: "company", "title", "match_score", "location", "application_url", "summary".
     """
 
     response = client.models.generate_content(
@@ -69,8 +59,19 @@ def evaluate_job(client: genai.Client, job: dict, profile: dict) -> dict:
             response_mime_type="application/json"
         )
     )
-    response_text = response.text or ""
-    return json.loads(response_text)
+
+    text_content = (response.text or "").strip()
+
+    # Clean markdown code block wrappers if present
+    if text_content.startswith("```"):
+        lines = text_content.splitlines()
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        text_content = "\n".join(lines).strip()
+
+    return json.loads(text_content)
 
 def main():
     api_key = os.environ.get("GEMINI_API_KEY")
