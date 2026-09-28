@@ -1,6 +1,7 @@
 # Personal & Confidential Data
 profile.json
 *.md
+actions-runner
 
 # Environment Variables & Keys
 .env
