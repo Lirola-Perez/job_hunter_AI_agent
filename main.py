@@ -7,8 +7,9 @@ from google import genai
 from google.genai import types
 
 # Target keywords to pre-filter construction roles before API calls
-TARGET_KEYWORDS = [ "construction", "building", "civil", "structural", "bim", "bem",
-    "architectural", "mep", "facade", "quantity surveyor"
+TARGET_KEYWORDS = [ "python", "machine learning", "deep learning", "ai", "data science",
+    "computational design", "bim manager", "bim developer", "parametric",
+    "generative design", "automation", "structural analysis", "civil"
 ]
 
 def load_resume(file_path: str = "resume.pdf") -> str:
