@@ -24,11 +24,14 @@ def load_resume(file_path: str = "resume.pdf") -> str:
         return f.read()
 
 def fetch_recent_jobs():
-    response = requests.get("[https://remoteok.com/api](https://remoteok.com/api)", headers={"User-Agent": "Mozilla/5.0"})
+    url = "https://remoteok.com/api"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    
+    response = requests.get(url, headers=headers)
     data = response.json()
+    
     raw_jobs = data[1:] if isinstance(data, list) and len(data) > 1 else []
 
-    # Pre-filter jobs locally to save API quota and execution time
     return [
         job for job in raw_jobs
         if any(kw in f"{job.get('position', '')} {' '.join(job.get('tags', []))}".lower() for kw in TARGET_KEYWORDS)
