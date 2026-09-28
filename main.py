@@ -77,10 +77,16 @@ def evaluate_job(client: genai.Client, job: dict, resume_text: str) -> dict:
         )
     )
 
-    response_text = response.text or ""
-    clean_text = response_text.strip()
+    clean_text = (response.text or "").strip()
+    
+    # Strip markdown block quotes if present
     if clean_text.startswith("```"):
-        clean_text = "\n".join(clean_text.splitlines()[1:-1])
+        lines = clean_text.splitlines()
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        clean_text = "\n".join(lines).strip()
 
     return json.loads(clean_text)
 
@@ -93,7 +99,10 @@ def main():
     if not resume_text:
         raise ValueError("Please place your 'resume.pdf' in the project folder.")
 
-    client = genai.Client(api_key=api_key)
+    client = genai.Client(
+        api_key=api_key,
+        http_options={'api_version': 'v1'}
+    )
     jobs = fetch_recent_jobs()
 
     print(f"Loaded CV ({len(resume_text)} chars). Found {len(jobs)} relevant construction jobs to analyze.\n")
