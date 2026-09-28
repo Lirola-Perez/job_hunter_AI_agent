@@ -7,10 +7,35 @@ from google import genai
 from google.genai import types
 
 # Target keywords to pre-filter construction roles before API calls
-TARGET_KEYWORDS = [ "python", "machine learning", "deep learning", "ai", "data science",
-    "computational design", "bim manager", "bim developer", "parametric",
-    "generative design", "automation", "structural analysis", "civil"
+# Keywords for pre-filtering locally BEFORE calling Gemini
+# Pre-filtering Keyword Arrays
+AEC_KEYWORDS = [
+    "construction", "building", "civil", "structural", "bim", 
+    "facade", "geotechnical", "aec", "architectural", "structure"
 ]
+
+TECH_KEYWORDS = [
+    "python", "machine learning", "deep learning", "ai", "data science", 
+    "developer", "computational", "automation", "algorithm", "data"
+]
+def fetch_recent_jobs():
+    # 1. Fetch raw standard jobs from both APIs
+    all_raw_jobs = fetch_remotive_all() + fetch_remoteok_all()
+    
+    filtered_jobs = []
+    
+    # 2. Filter locally to match BOTH criteria
+    for job in all_raw_jobs:
+        text = f"{job['position']} {job['description']}".lower()
+        
+        has_aec = any(kw in text for kw in AEC_KEYWORDS)
+        has_tech = any(kw in text for kw in TECH_KEYWORDS)
+
+        # Only pass jobs that satisfy both AEC and Python/ML requirements
+        if has_aec and has_tech:
+            filtered_jobs.append(job)
+
+    return filtered_jobs
 
 def load_resume(file_path: str = "resume.pdf") -> str:
     """Loads PDF or TXT resume."""
@@ -24,19 +49,61 @@ def load_resume(file_path: str = "resume.pdf") -> str:
     with open(file_path, "r", encoding="utf-8") as f:
         return f.read()
 
-def fetch_recent_jobs():
-    url = "https://remoteok.com/api"
-    headers = {"User-Agent": "Mozilla/5.0"}
+# def fetch_recent_jobs():
+#     url = "https://remoteok.com/api"
+#     headers = {"User-Agent": "Mozilla/5.0"}
     
-    response = requests.get(url, headers=headers)
-    data = response.json()
+#     response = requests.get(url, headers=headers)
+#     data = response.json()
+#     others = fetch_remotive_all()
+#     data.append(others)
     
-    raw_jobs = data[1:] if isinstance(data, list) and len(data) > 1 else []
+#     raw_jobs = data[1:] if isinstance(data, list) and len(data) > 1 else []
 
-    return [
-        job for job in raw_jobs
-        if any(kw in f"{job.get('position', '')} {' '.join(job.get('tags', []))}".lower() for kw in TARGET_KEYWORDS)
-    ]
+#     return [
+#         job for job in raw_jobs
+#         if any(kw in f"{job.get('position', '')} {' '.join(job.get('tags', []))}".lower() for kw in TARGET_KEYWORDS)
+#     ]
+
+def fetch_remotive_all():
+    """Returns ~1,000 active remote jobs from Remotive."""
+    try:
+        res = requests.get("https://remotive.com/api/remote-jobs", timeout=10)
+        if res.status_code == 200:
+            raw_jobs = res.json().get("jobs", [])
+            # Map Remotive schema to standardized schema
+            return [{
+                "position": j.get("title", ""),
+                "company": j.get("company_name", ""),
+                "location": j.get("candidate_required_location", "Remote"),
+                "url": j.get("url", ""),
+                "description": j.get("description", ""),
+                "source": "Remotive"
+            } for j in raw_jobs]
+    except Exception as e:
+        print(f"Error fetching Remotive: {e}")
+    return []
+
+def fetch_remoteok_all():
+    """Returns recent remote jobs from RemoteOK."""
+    try:
+        res = requests.get("https://remoteok.com/api", headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        if res.status_code == 200:
+            data = res.json()
+            # RemoteOK places API terms/disclaimers in index 0; skip it
+            raw_jobs = data[1:] if isinstance(data, list) and len(data) > 1 else []
+            # Map RemoteOK schema to standardized schema
+            return [{
+                "position": j.get("position", ""),
+                "company": j.get("company", ""),
+                "location": j.get("location", "Remote"),
+                "url": j.get("url", ""),
+                "description": f"{j.get('description', '')} {' '.join(j.get('tags', []))}",
+                "source": "RemoteOK"
+            } for j in raw_jobs]
+    except Exception as e:
+        print(f"Error fetching RemoteOK: {e}")
+    return []
 
 def evaluate_job(client: genai.Client, job: dict, resume_text: str) -> dict:
     prompt = f"""
