@@ -1,6 +1,7 @@
 # Personal & Confidential Data
 profile.json
 *.md
+*.pdf
 
 # Environment Variables & Keys
 .env
