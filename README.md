@@ -1,6 +1,6 @@
 # Job Hunter AI Agent
 
-## Open Weights AI Local Hunter- No ChatGPT, Claude, Antropic
+## Open-Weights-AI Local Hunter (No ChatGPT, Claude, Anthropic..)
 
 Run your own AI locally in your computer and let it find a adequated job position.
 
@@ -35,7 +35,7 @@ What does this tool:
     ```
 
     **Note on Python version**: *Python version 3.11 is chosen concretely to avoid future conflicts with packages that are not entirely fitting in NixOs. For Machine Learning purposes that version is a stable choice for other improved modules (such as tensorflow, scikit-learn...) as I experienced*
-    - `flake.nix` contains pip and virtualenv to allow precisely to install manually modules like `pypdf` `streamlit` `requests` `pandas`
+    - `flake.nix` contains `pip` and `virtualenv` to allow precisely to install manually modules like `pypdf` `streamlit` `requests` `pandas`
 
 
     **Note on Virtual Environment:** To bypass Python packaging issues on NixOS, create and activate a local virtual environment inside the shell:
@@ -47,7 +47,7 @@ What does this tool:
     ```
 
 2. **Pulling Open-Weight Models via Ollama**
-    Ensure the Ollama service is running locally (localhost:11434), then pull the required models:
+    Ensure the Ollama service is running locally (`localhost:11434`), then pull the required models:
 
     ```bash
         # Pull primary evaluation model
@@ -74,7 +74,7 @@ What does this tool:
 As the AI Agent runs entirely in your computer, some considerations should be taken:
 
 1. **Memory Bandwidth & VRAM Bottlenecks**
-    - **VRAM Capacity:** Models run fastest when fully offloaded to GPU VRAM (~4.5 GB for qwen2.5:7b). If VRAM overflows into system RAM, token generation speed drops dramatically.
+    - **VRAM Capacity:** Models run fastest when fully offloaded to GPU VRAM (~4.5 GB for `qwen2.5:7b`). If VRAM overflows into system RAM, token generation speed drops dramatically.
 
     - **Context Length Allocation:** Job evaluations use up to 8192 tokens (`num_ctx: 8192`) to parse entire CVs and job postings. Large context windows consume additional KV-cache memory in VRAM.
 
@@ -92,6 +92,6 @@ As the AI Agent runs entirely in your computer, some considerations should be ta
     You can add those commands directly on the command window or, if you are using NixOs, add them direcly in the Ollama configuraion in the `configuration.nix` file
 
 3. **Rate Limits & Web Sources**
-    External job sources (e.g., RemoteOK) enforce strict API rate limits. Sequential polling is built into web_search.py to prevent IP blocks.
+    External job sources (e.g., `RemoteOK`) enforce strict API rate limits. Sequential polling is built into web_search.py to prevent IP blocks.
 
     *By adding small pauses (`time.sleep()`) and fetching one API after another sequentially, the network traffic looks like normal human browsing rather than a automated bot, trying to keep the IP safe from blocks.*
