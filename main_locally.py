@@ -3,6 +3,7 @@ import os
 import time
 import requests
 from pypdf import PdfReader
+from web_search import fetch_remoteok_all, fetch_remotive_all, fetch_weworkremotely, fetch_hn_hiring
 
 # Default local Ollama endpoint configuration
 OLLAMA_URL = "http://localhost:11434/api/generate"
@@ -26,83 +27,34 @@ def load_resume(file_path: str = "resume.pdf") -> str:
     with open(file_path, "r", encoding="utf-8") as f:
         return f.read()
 
-
-def fetch_remotive_all():
-    """Returns active remote jobs from Remotive."""
-    try:
-        res = requests.get("https://remotive.com/api/remote-jobs", timeout=10)
-        if res.status_code == 200:
-            raw_jobs = res.json().get("jobs", [])
-            return [
-                {
-                    "position": j.get("title", ""),
-                    "company": j.get("company_name", ""),
-                    "location": j.get("candidate_required_location", "Remote"),
-                    "url": j.get("url", ""),
-                    "description": j.get("description", ""),
-                    "source": "Remotive",
-                }
-                for j in raw_jobs
-            ]
-    except Exception as e:
-        print(f"Error fetching Remotive: {e}")
-    return []
-
-
-def fetch_remoteok_all():
-    """Returns recent remote jobs from RemoteOK."""
-    try:
-        res = requests.get(
-            "https://remoteok.com/api",
-            headers={"User-Agent": "Mozilla/5.0"},
-            timeout=10,
-        )
-        if res.status_code == 200:
-            data = res.json()
-            raw_jobs = (
-                data[1:] if isinstance(data, list) and len(data) > 1 else []
-            )
-            return [
-                {
-                    "position": j.get("position", ""),
-                    "company": j.get("company", ""),
-                    "location": j.get("location", "Remote"),
-                    "url": j.get("url", ""),
-                    "description": f"{j.get('description', '')} {' '.join(j.get('tags', []))}",
-                    "source": "RemoteOK",
-                }
-                for j in raw_jobs
-            ]
-    except Exception as e:
-        print(f"Error fetching RemoteOK: {e}")
-    return []
-
-
 def fetch_recent_jobs(search_terms: str = ""):
     """Fetches raw jobs and performs pre-filtering using user keywords."""
-    all_raw_jobs = fetch_remotive_all() + fetch_remoteok_all()
+    all_raw_jobs =  fetch_remotive_all() + \
+                    fetch_remoteok_all() + \
+                    fetch_weworkremotely() + \
+                    fetch_hn_hiring()
     filtered_jobs = []
 
     # Parse comma-separated user keywords or fall back to defaults
-    if search_terms.strip():
+    if search_terms == "default":
+        keywords = [
+                    "python",
+                    "machine learning",
+                    "deep learning",
+                    "data scientist",
+                    "data engineer",
+                    "automation",
+                    "researcher"
+                ]
+    elif search_terms.strip():
         keywords = [
             kw.strip().lower()
             for kw in search_terms.split(",")
             if kw.strip()
         ]
     else:
-        keywords = [
-            "python",
-            "machine learning",
-            "deep learning",
-            "data scientist",
-            "data engineer",
-            "construction",
-            "bim",
-            "aec",
-            "automation",
-            "researcher"
-        ]
+        raise Exception('No keywords specified')
+        
 
     for job in all_raw_jobs:
         text = f"{job['position']} {job['description']}".lower()
@@ -115,7 +67,10 @@ def fetch_recent_jobs(search_terms: str = ""):
 
 
 def evaluate_job_locally(
-    job: dict, resume_text: str, model_name: str = "qwen2.5:7b"
+    job: dict,
+    desired_location: str,
+    resume_text: str, 
+    model_name: str = "qwen2.5:7b"
 ) -> dict:
     """Evaluates a job posting using Ollama running locally."""
     prompt = f"""
@@ -124,20 +79,28 @@ def evaluate_job_locally(
 
     CANDIDATE RESUME:
     {resume_text}
+    preferred_location: {desired_location}
 
     JOB POSTING:
     Title: {job.get('position')}
     Company: {job.get('company')}
-    Location: {job.get('location', 'Remote')}
+    JobLocation: {job.get('location', 'Remote')}
     URL: {job.get('url')}
     Description: {job.get('description', '')[:2500]}
 
     CRITICAL EVALUATION RULES:
-    1. If the role lacks Python/ML/Automation assign match_score <= 4.
-    2. If the role lacks AEC/Civil/Structural engineering context assign match_score <= 8.
-    3. If the role as customer service or sales assign match_score = 0.
-    4. Jobs in location Berlin or EU remote match_score >=7
-    5. Assign match_score between 1 and 10.
+    1. HARD DISQUALIFICATIONS (match_score = 1):
+       - Non-technical roles (Sales, Customer Service, Support, Account Manager).
+    2. TECHNICAL MANDATES (Base Score):
+       - If the role LACKS Python / Machine Learning / Data Science / Software Automation, match_score CANNOT exceed 4.
+    3. BONUS WEIGHTING:
+       - AEC / Civil / Structural / BIM / Computational Design context is a WELCOME PLUS (+1 to +2 points), but NOT required.
+    4. LOCATION FILTERING:
+       - If JobLocation is "Remote" keep score unchanged.
+       - If JobLocation is '{desired_location}' add 1 point. 
+       - If JobLocation specifies a region mismatch (e.g., "US Only" vs candidate preferred '{desired_location}'), deduct 2 points.
+    4. BOUNDS:
+       - Return an integer match_score between 1 and 10.
     6. Return strictly a JSON object with this exact structure:
     {{
       "company": "{job.get('company')}",
@@ -154,6 +117,12 @@ def evaluate_job_locally(
         "prompt": prompt,
         "format": "json",
         "stream": False,
+        "keep_alive": -1,  # Keeps the model loaded in VRAM between requests (no reload delays)
+        "options": {
+            "num_ctx": 8192,  # Expands context window so full CV + job description fit without clipping
+            "temperature": 0.1,  # Lowers randomness for consistent score evaluation & structured JSON
+            "num_predict": 512,  # Cap max output tokens since structured JSON summary is short
+        },
     }
 
     res = requests.post(OLLAMA_URL, json=payload, timeout=(10, 180))
@@ -167,6 +136,7 @@ def evaluate_job_locally(
 
 def run_job_hunter(
     cv_path: str = "resume.pdf",
+    location: str = "Berlin",
     search_terms: str = "",
     threshold: int = 6,
     model_name: str = "llama3.2:3b",
@@ -191,7 +161,7 @@ def run_job_hunter(
 
     for job in jobs:
         try:
-            result = evaluate_job_locally(job, resume_text, model_name)
+            result = evaluate_job_locally(job, location, resume_text, model_name)
             score = result.get("match_score", 0)
 
             if score >= threshold:

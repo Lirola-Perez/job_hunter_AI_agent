@@ -2,8 +2,8 @@ import streamlit as st
 # Import your local execution script
 from main_locally import run_job_hunter
 
-st.set_page_config(page_title="AEC Job Hunter Agent", layout="wide")
-st.title("AEC Job Hunter Agent Dashboard")
+st.set_page_config(page_title="Job Hunter Agent", layout="wide")
+st.title("Job Hunter Agent Dashboard")
 
 # ---------------------------------------------------------
 # 1. INPUT DATA SECTION
@@ -14,9 +14,9 @@ st.sidebar.header("Agent Parameters")
 uploaded_cv = st.sidebar.file_uploader("Upload Your CV (PDF)", type=["pdf"])
 
 # Text & slider inputs
-keywords = st.sidebar.text_input("Keywords", "Python, Machine Learning, AEC")
-location = st.sidebar.text_input("Berlin")
-min_score = st.sidebar.slider("Minimum Match Score", min_value=1, max_value=10, value=7)
+keywords = st.sidebar.text_input("main roles ('default' = ML/Data Eng.)")
+location = st.sidebar.text_input("Location")
+min_score = st.sidebar.slider("Minimum Match Score", min_value=1, max_value=10, value=6)
 
 # Model choice input
 model_choice = st.sidebar.selectbox(
@@ -42,6 +42,7 @@ if run_agent:
             # Call your Python agent logic
             results = run_job_hunter(
                 cv_path="temp_cv.pdf",
+                location=location,
                 search_terms=keywords,
                 threshold=min_score,
                 model_name=model_choice
