@@ -1,6 +1,5 @@
 # Personal & Confidential Data
 profile.json
-*.md
 actions-runner
 *.pdf
 .agents/
