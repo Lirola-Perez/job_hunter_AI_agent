@@ -2,7 +2,7 @@
 
 ## Open-Weights-AI Local Hunter (No ChatGPT, Claude, Anthropic..)
 
-Run your own AI locally in your computer and let it find a adequated job position.
+Run your own AI locally in your computer and let it find an adequated job position.
 
 An automated, local-first job evaluation pipeline built with **Python**, **Streamlit**, and **Ollama**.
 
