@@ -22,15 +22,6 @@
           python313
           python311Packages.pip
           python311Packages.virtualenv
-          # python313Packages.numpy
-          # python313Packages.pandas
-          # python313Packages.tensorflow
-          # python313Packages.ipykernel
-          # python313Packages.jupyter
-          # python313Packages.scikit-learn
-          # python313Packages.google-genai
-          # python313Packages.pypdf
-          # python311Packages.streamlit
           vscode
           pandoc
           ollama
@@ -46,7 +37,7 @@
           fi
           
           source .venv/bin/activate
-          echo "🤖 Python 3.11 virtual environment activated!"
+          echo "Python 3.11 virtual environment activated!"
         '';
       };
     };
